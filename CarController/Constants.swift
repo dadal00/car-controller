@@ -15,3 +15,6 @@ enum IDs {
     static let car          = CBUUID(string: "AAAA")
     static let control      = CBUUID(string: "BBBB")
 }
+
+let udpIP = "192.168.2.3"
+let udpPort: UInt16 = 1111
