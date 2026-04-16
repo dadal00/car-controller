@@ -11,13 +11,13 @@ import SwiftUI
 struct CarControllerApp: App {
     // state object is used when we want to track changes and show them in the visuals
     @StateObject var bluetoothCentral = BluetoothCentral()
+    @StateObject var microphoneCapture = MicrophoneCapture()
     
     var bluetoothPeripheral = BluetoothPeripheral()
-    var udpClient = UDPClient(host: udpIP, port: udpPort)
     
     var body: some Scene {
         WindowGroup {
-            ContentView(bluetoothCentral: bluetoothCentral, udpClient: udpClient)
+            ContentView(bluetoothCentral: bluetoothCentral, microphoneCapture: microphoneCapture)
         }
     }
 }

@@ -10,13 +10,13 @@ import SwiftUI
 
 final class UDPClient {
     private let connection: NWConnection
-
+    
     init(host: String, port: UInt16) {
         let endpoint = NWEndpoint.Host(host)
         let nwPort = NWEndpoint.Port(rawValue: port)!
-
+        
         self.connection = NWConnection(host: endpoint, port: nwPort, using: .udp)
-
+        
         connection.stateUpdateHandler = { state in
             switch state {
             case .ready:
@@ -27,32 +27,18 @@ final class UDPClient {
                 break
             }
         }
-
+        
         connection.start(queue: .global())
     }
-
-    func send(_ message: String) {
-        let data = message.data(using: .utf8)!
-
-        connection.send(content: data, completion: .contentProcessed { error in
-            if let error = error {
-                print("Send error:", error)
-            } else {
-                print("Sent!")
-            }
-        })
-    }
-
+    
     func send(_ data: Data) {
         connection.send(content: data, completion: .contentProcessed { error in
             if let error = error {
                 print("Send error:", error)
-            } else {
-                print("Sent!")
             }
         })
     }
-
+    
     func stop() {
         connection.cancel()
     }
