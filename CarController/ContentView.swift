@@ -44,6 +44,6 @@ struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView(
             bluetoothCentral: BluetoothCentral(),
-            microphoneCapture: MicrophoneCapture()
+            microphoneCapture: MicrophoneCapture(bluetoothCentral: BluetoothCentral())
         )    }
 }

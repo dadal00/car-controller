@@ -162,4 +162,12 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         let data = Data(command)
         carPeripheral!.writeValue(data, for: controlCharacteristic!, type: .withoutResponse)
     }
+    
+    func lightOn() {
+        print("Light turning on!")
+    }
+    
+    func lightOff() {
+        print("Light turning off!")
+    }
 }

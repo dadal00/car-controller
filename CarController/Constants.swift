@@ -37,4 +37,9 @@ struct Audio {
     static let chunkByteSize = 640
 }
 
+struct VoiceCommands {
+    static let lightOn = "light on"
+    static let lightOff = "light off"
+}
+
 

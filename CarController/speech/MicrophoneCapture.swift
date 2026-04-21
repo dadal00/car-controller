@@ -6,28 +6,81 @@
 //
 
 import AVFoundation
+import Speech
 
 class MicrophoneCapture: ObservableObject {
+    private var bluetoothCentral: BluetoothCentral
+    
     private let engine = AVAudioEngine()
     private let udpClient = UDPClient(host: Wifi.udpIp, port: Wifi.udpPort)
+    private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var converter: AVAudioConverter!
     private var convertedAudioBuffer = Data()
+    private var recognitionTask: SFSpeechRecognitionTask?
     
     @Published var isStreaming = false
     
-    init() {
+    init(bluetoothCentral: BluetoothCentral) {
         let input = engine.inputNode
         let inputFormat = input.inputFormat(forBus: 0)
         
         converter = AVAudioConverter(from: inputFormat, to: Audio.targetFormat)
+        self.bluetoothCentral = bluetoothCentral
         
         try? engine.start()
+    }
+    
+    private func restartStreaming() {
+        stop()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            do {
+                try self.start()
+            } catch {
+                print("Restart failed:", error)
+            }
+        }
+    }
+    
+    private func startSpeechRecognition(inputFormat: AVAudioFormat) {
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        recognitionRequest?.shouldReportPartialResults = true
+        
+        recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest!) { [weak self] result, error in
+            guard let self else { return }
+
+            if let result = result {
+                let text = result.bestTranscription.formattedString.lowercased()
+                print("Heard: ", text)
+                
+                if text.contains(VoiceCommands.lightOn) {
+                    bluetoothCentral.lightOn()
+                    
+                    restartStreaming()
+                }
+                if text.contains(VoiceCommands.lightOff) {
+                    bluetoothCentral.lightOff()
+                    
+                    restartStreaming()
+                }
+            }
+
+            if error != nil || (result?.isFinal ?? false) {
+                self.recognitionTask?.cancel()
+                self.recognitionTask = nil
+            }
+        }
     }
     
     private func start() throws {
         guard !isStreaming else { return }
         isStreaming = true
+        
+        SFSpeechRecognizer.requestAuthorization { status in
+            print(status)
+        }
         
         let input = engine.inputNode
         let inputFormat = input.inputFormat(forBus: 0)
@@ -37,9 +90,20 @@ class MicrophoneCapture: ObservableObject {
                          format: inputFormat) { [weak self] buffer, _ in
             guard let self else { return }
             self.process(buffer: buffer, targetFormat: Audio.targetFormat)
+            
+            self.recognitionRequest?.append(buffer)
         }
         
         try engine.start()
+        startSpeechRecognition(inputFormat: inputFormat)
+    }
+    
+    private func stopSpeechRecognition() {
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+        
+        recognitionTask = nil
+        recognitionRequest = nil
     }
     
     
@@ -51,6 +115,7 @@ class MicrophoneCapture: ObservableObject {
         engine.stop()
 
         convertedAudioBuffer.removeAll()
+        stopSpeechRecognition()
     }
     
     func toggleStreaming() {
