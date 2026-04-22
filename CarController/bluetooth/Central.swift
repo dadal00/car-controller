@@ -13,6 +13,7 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     @Published var carPeripheral: CBPeripheral?
     var controlCharacteristic: CBCharacteristic?
     var voiceCharacteristic: CBCharacteristic?
+    var udpClient: UDPClient?
     
     override init() {
         super.init()
@@ -105,10 +106,6 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         }
         
         for characteristic in characteristics {
-//            print("""
-//                    - UUID: \(characteristic.uuid.uuidString)
-//                      properties: \(characteristic.properties)
-//                    """)
             
             switch characteristic.uuid {
             case IDs.control:
@@ -117,9 +114,39 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             case IDs.voice:
                 self.voiceCharacteristic = characteristic
                 print("Found voice!")
+                
+                if characteristic.properties.contains(.notify) {
+                    peripheral.setNotifyValue(true, for: characteristic)
+                    print("Subscribed to voice notifications")
+                }
+                
+                sendUdpId(idPayload: Array(Wifi.Bonjour.id.utf8))
             default:
                 print("Unknown characteristic: \(characteristic.uuid)")
             }
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral,
+                    didUpdateValueFor characteristic: CBCharacteristic,
+                    error: Error?) {
+        
+        if let error = error {
+            print("Error receiving notification: \(error.localizedDescription)")
+            return
+        }
+        
+        guard let data = characteristic.value else {
+            print("No data received")
+            return
+        }
+        
+        if characteristic.uuid == IDs.voice && data.count == Wifi.Bonjour.idLength * Wifi.Bonjour.connections {
+            print("Voice notification received: \(data)")
+            
+            let bytes = [UInt8](data)
+            self.udpClient?.stop()
+            self.udpClient = UDPClient(targetIdsBytes: bytes)
         }
     }
     
@@ -174,7 +201,7 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         carPeripheral!.writeValue(data, for: controlCharacteristic!, type: .withoutResponse)
     }
     
-    func updateCarLight(command: UInt8) {
+    func writeToVoice(command: [UInt8]) {
         if carPeripheral == nil {
             print("peripheral not found!")
             return
@@ -185,17 +212,25 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             return
         }
         
-        let data = Data([command])
+        let data = Data(command)
         carPeripheral!.writeValue(data, for: voiceCharacteristic!, type: .withoutResponse)
     }
     
     func lightOn() {
         print("Light turning on!")
-        updateCarLight(command: VoiceCommands.lightOnCommand)
+        writeToVoice(command: [VoiceCommands.lightOnCommand])
     }
     
     func lightOff() {
         print("Light turning off!")
-        updateCarLight(command: VoiceCommands.lightOffCommand)
+        writeToVoice(command: [VoiceCommands.lightOffCommand])
+    }
+    
+    func sendUdpId(idPayload: [UInt8]) {
+        print("Sending UDP ID!")
+
+        let message: [UInt8] = [VoiceCommands.bonjourCommand] + idPayload
+
+        writeToVoice(command: message)
     }
 }
