@@ -12,6 +12,8 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     
     @Published var carPeripheral: CBPeripheral?
     var controlCharacteristic: CBCharacteristic?
+    var voiceCharacteristic: CBCharacteristic?
+    var udpClient: UDPClient?
     
     override init() {
         super.init()
@@ -42,8 +44,8 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
                         didDiscover peripheral: CBPeripheral,
                         advertisementData: [String : Any],
                         rssi RSSI: NSNumber) {
-        //        print("Peripheral: \(peripheral.name ?? "Unknown"), UUID: \(peripheral.identifier)")
-        //        print("Advertisement Data: \(advertisementData)")
+//                print("Peripheral: \(peripheral.name ?? "Unknown"), UUID: \(peripheral.identifier)")
+//                print("Advertisement Data: \(advertisementData)")
         
         print("Found peripheral: \(peripheral.name ?? "Unknown")")
         
@@ -77,6 +79,7 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         if self.carPeripheral == peripheral {
             self.carPeripheral = nil
             self.controlCharacteristic = nil
+            self.voiceCharacteristic = nil
         }
         
         // Restart scanning
@@ -92,24 +95,58 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         guard let services = peripheral.services else { return }
         
         for service in services {
-            peripheral.discoverCharacteristics([IDs.control], for: service)
+            peripheral.discoverCharacteristics([IDs.control, IDs.voice], for: service)
         }
     }
     
     // identify and assign characteristics
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        guard let characteristics = service.characteristics, self.controlCharacteristic == nil else {
+        guard let characteristics = service.characteristics, self.controlCharacteristic == nil || self.voiceCharacteristic == nil else {
             return
         }
         
-        for characteric in characteristics {
-            switch characteric.uuid {
+        for characteristic in characteristics {
+            
+            switch characteristic.uuid {
             case IDs.control:
-                self.controlCharacteristic = characteric
+                self.controlCharacteristic = characteristic
                 print("Found control!")
+            case IDs.voice:
+                self.voiceCharacteristic = characteristic
+                print("Found voice!")
+                
+                if characteristic.properties.contains(.notify) {
+                    peripheral.setNotifyValue(true, for: characteristic)
+                    print("Subscribed to voice notifications")
+                }
+                
+                sendUdpId(idPayload: Array(Wifi.Bonjour.id.utf8))
             default:
-                print("Unknown characteristic: \(characteric.uuid)")
+                print("Unknown characteristic: \(characteristic.uuid)")
             }
+        }
+    }
+    
+    func peripheral(_ peripheral: CBPeripheral,
+                    didUpdateValueFor characteristic: CBCharacteristic,
+                    error: Error?) {
+        
+        if let error = error {
+            print("Error receiving notification: \(error.localizedDescription)")
+            return
+        }
+        
+        guard let data = characteristic.value else {
+            print("No data received")
+            return
+        }
+        
+        if characteristic.uuid == IDs.voice && data.count == Wifi.Bonjour.idLength * Wifi.Bonjour.connections {
+            print("Voice notification received: \(data)")
+            
+            let bytes = [UInt8](data)
+            self.udpClient?.stop()
+            self.udpClient = UDPClient(targetIdsBytes: bytes)
         }
     }
     
@@ -121,6 +158,7 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             print("Services invalidated — clearing peripheral and restarting scan")
             carPeripheral = nil
             controlCharacteristic = nil
+            voiceCharacteristic = nil
             
             // Stop any ongoing connection attempts
             manager.cancelPeripheralConnection(peripheral)
@@ -161,5 +199,38 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         let command: [UInt8] = [magnitude] + bytes
         let data = Data(command)
         carPeripheral!.writeValue(data, for: controlCharacteristic!, type: .withoutResponse)
+    }
+    
+    func writeToVoice(command: [UInt8]) {
+        if carPeripheral == nil {
+            print("peripheral not found!")
+            return
+        }
+        
+        if voiceCharacteristic == nil {
+            print("voice not found!")
+            return
+        }
+        
+        let data = Data(command)
+        carPeripheral!.writeValue(data, for: voiceCharacteristic!, type: .withoutResponse)
+    }
+    
+    func lightOn() {
+        print("Light turning on!")
+        writeToVoice(command: [VoiceCommands.lightOnCommand])
+    }
+    
+    func lightOff() {
+        print("Light turning off!")
+        writeToVoice(command: [VoiceCommands.lightOffCommand])
+    }
+    
+    func sendUdpId(idPayload: [UInt8]) {
+        print("Sending UDP ID!")
+
+        let message: [UInt8] = [VoiceCommands.bonjourCommand] + idPayload
+
+        writeToVoice(command: message)
     }
 }

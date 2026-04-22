@@ -29,9 +29,22 @@
 		37EBDDA92F46083E00C762B2 /* CarControllerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CarControllerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		37AF0FA52F990CA700DDD71F /* Exceptions for "CarController" folder in "CarController" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 37EBDD912F46083C00C762B2 /* CarController */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		37EBDD942F46083C00C762B2 /* CarController */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				37AF0FA52F990CA700DDD71F /* Exceptions for "CarController" folder in "CarController" target */,
+			);
 			path = CarController;
 			sourceTree = "<group>";
 		};
@@ -398,7 +411,11 @@
 				DEVELOPMENT_TEAM = XUWHD3UNUW;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CarController/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Uses Bluetooth to connect to RC car.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Find nearby devices.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Streams microphone audio to RC car.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Uses speech recognition for voice control.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -428,12 +445,16 @@
 				DEVELOPMENT_TEAM = XUWHD3UNUW;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CarController/Info.plist;
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Uses Bluetooth to connect to RC car.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Find nearby devices.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Streams microphone audio to RC car.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Uses speech recognition for voice control.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationPortrait";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationPortrait";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
