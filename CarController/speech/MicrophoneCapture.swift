@@ -16,28 +16,28 @@ class MicrophoneCapture: ObservableObject {
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))
     
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
-    private var converter: AVAudioConverter!
-    private var convertedAudioBuffer = Data()
+//    private var converter: AVAudioConverter!
+//    private var convertedAudioBuffer = Data()
     private var recognitionTask: SFSpeechRecognitionTask?
     
-    @Published var isStreaming = false
+    @Published var usingAudio = false
     
     init(bluetoothCentral: BluetoothCentral) {
-        let input = engine.inputNode
-        let inputFormat = input.inputFormat(forBus: 0)
+//        let input = engine.inputNode
+//        let inputFormat = input.inputFormat(forBus: 0)
         
-        converter = AVAudioConverter(from: inputFormat, to: Audio.targetFormat)
+//        converter = AVAudioConverter(from: inputFormat, to: Audio.targetFormat)
         self.bluetoothCentral = bluetoothCentral
         
-        try? engine.start()
+//        try? engine.start()
     }
     
-    private func restartStreaming() {
-        stop()
+    private func restartCommand() {
+        stop(option: Audio.Use.command)
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
             do {
-                try self.start()
+                try self.start(option: Audio.Use.command)
             } catch {
                 print("Restart failed:", error)
             }
@@ -58,12 +58,12 @@ class MicrophoneCapture: ObservableObject {
                 if text.contains(VoiceCommands.lightOn) {
                     bluetoothCentral.lightOn()
                     
-                    restartStreaming()
+                    restartCommand()
                 }
                 if text.contains(VoiceCommands.lightOff) {
                     bluetoothCentral.lightOff()
                     
-                    restartStreaming()
+                    restartCommand()
                 }
             }
 
@@ -74,9 +74,9 @@ class MicrophoneCapture: ObservableObject {
         }
     }
     
-    private func start() throws {
-        guard !isStreaming else { return }
-        isStreaming = true
+    private func start(option: Int8) throws {
+        guard !usingAudio else { return }
+        usingAudio = true
         
         SFSpeechRecognizer.requestAuthorization { status in
             print(status)
@@ -89,13 +89,15 @@ class MicrophoneCapture: ObservableObject {
                          bufferSize: Audio.bufferSize,
                          format: inputFormat) { [weak self] buffer, _ in
             guard let self else { return }
-            self.process(buffer: buffer, targetFormat: Audio.targetFormat)
+//            self.process(buffer: buffer, targetFormat: Audio.targetFormat)
             
             self.recognitionRequest?.append(buffer)
         }
         
         try engine.start()
-        startSpeechRecognition(inputFormat: inputFormat)
+        if option == Audio.Use.command {
+            startSpeechRecognition(inputFormat: inputFormat)
+        }
     }
     
     private func stopSpeechRecognition() {
@@ -107,70 +109,72 @@ class MicrophoneCapture: ObservableObject {
     }
     
     
-    private func stop() {
-        guard isStreaming else { return }
-        isStreaming = false
+    private func stop(option: Int8) {
+        guard usingAudio else { return }
+        usingAudio = false
 
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
 
-        convertedAudioBuffer.removeAll()
-        stopSpeechRecognition()
+//        convertedAudioBuffer.removeAll()
+        if option == Audio.Use.command {
+            stopSpeechRecognition()
+        }
     }
     
-    func toggleStreaming() {
+    func toggleStreaming(option: Int8) {
         do {
-            if isStreaming {
-                self.stop()
+            if usingAudio {
+                self.stop(option: option)
             } else {
-                try self.start()
+                try self.start(option: option)
             }
         } catch {
             print("Streaming error: \(error)")
         }
     }
     
-    private func process(buffer: AVAudioPCMBuffer, targetFormat: AVAudioFormat) {
-        guard let converter = converter else { return }
-        
-        guard let convertedBuffer = AVAudioPCMBuffer(
-            pcmFormat: Audio.targetFormat,
-            frameCapacity: Audio.frameCapacity
-        ) else { return }
-        
-        var error: NSError?
-        
-        let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
-            outStatus.pointee = .haveData
-            return buffer
-        }
-        
-        converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
-        
-        if let error = error {
-            print("Conversion error:", error)
-            return
-        }
-        
-        // Extract Int16 data
-        guard let channelData = convertedBuffer.int16ChannelData else { return }
-        
-        let frameLength = Int(convertedBuffer.frameLength)
-        let byteCount = frameLength * MemoryLayout<Int16>.size
-        
-        let pcmAudioBytes = Data(bytes: channelData[0], count: byteCount)
-        
-        sendPCMAudioBytes(pcmAudioBytes)
-    }
-    
-    private func sendPCMAudioBytes(_ data: Data) {
-        convertedAudioBuffer.append(data)
-        
-        while convertedAudioBuffer.count >= Audio.chunkByteSize {
-            let chunk = convertedAudioBuffer.prefix(Audio.chunkByteSize)
-            udpClient.send(chunk)
-            
-            convertedAudioBuffer.removeFirst(Audio.chunkByteSize)
-        }
-    }
+//    private func process(buffer: AVAudioPCMBuffer, targetFormat: AVAudioFormat) {
+//        guard let converter = converter else { return }
+//        
+//        guard let convertedBuffer = AVAudioPCMBuffer(
+//            pcmFormat: Audio.targetFormat,
+//            frameCapacity: Audio.frameCapacity
+//        ) else { return }
+//        
+//        var error: NSError?
+//        
+//        let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
+//            outStatus.pointee = .haveData
+//            return buffer
+//        }
+//        
+//        converter.convert(to: convertedBuffer, error: &error, withInputFrom: inputBlock)
+//        
+//        if let error = error {
+//            print("Conversion error:", error)
+//            return
+//        }
+//        
+//        // Extract Int16 data
+//        guard let channelData = convertedBuffer.int16ChannelData else { return }
+//        
+//        let frameLength = Int(convertedBuffer.frameLength)
+//        let byteCount = frameLength * MemoryLayout<Int16>.size
+//        
+//        let pcmAudioBytes = Data(bytes: channelData[0], count: byteCount)
+//        
+//        sendPCMAudioBytes(pcmAudioBytes)
+//    }
+//    
+//    private func sendPCMAudioBytes(_ data: Data) {
+//        convertedAudioBuffer.append(data)
+//        
+//        while convertedAudioBuffer.count >= Audio.chunkByteSize {
+//            let chunk = convertedAudioBuffer.prefix(Audio.chunkByteSize)
+//            udpClient.send(chunk)
+//            
+//            convertedAudioBuffer.removeFirst(Audio.chunkByteSize)
+//        }
+//    }
 }

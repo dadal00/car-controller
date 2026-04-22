@@ -12,6 +12,7 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
     
     @Published var carPeripheral: CBPeripheral?
     var controlCharacteristic: CBCharacteristic?
+    var voiceCharacteristic: CBCharacteristic?
     
     override init() {
         super.init()
@@ -42,8 +43,8 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
                         didDiscover peripheral: CBPeripheral,
                         advertisementData: [String : Any],
                         rssi RSSI: NSNumber) {
-        //        print("Peripheral: \(peripheral.name ?? "Unknown"), UUID: \(peripheral.identifier)")
-        //        print("Advertisement Data: \(advertisementData)")
+//                print("Peripheral: \(peripheral.name ?? "Unknown"), UUID: \(peripheral.identifier)")
+//                print("Advertisement Data: \(advertisementData)")
         
         print("Found peripheral: \(peripheral.name ?? "Unknown")")
         
@@ -77,6 +78,7 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         if self.carPeripheral == peripheral {
             self.carPeripheral = nil
             self.controlCharacteristic = nil
+            self.voiceCharacteristic = nil
         }
         
         // Restart scanning
@@ -92,23 +94,31 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         guard let services = peripheral.services else { return }
         
         for service in services {
-            peripheral.discoverCharacteristics([IDs.control], for: service)
+            peripheral.discoverCharacteristics([IDs.control, IDs.voice], for: service)
         }
     }
     
     // identify and assign characteristics
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
-        guard let characteristics = service.characteristics, self.controlCharacteristic == nil else {
+        guard let characteristics = service.characteristics, self.controlCharacteristic == nil || self.voiceCharacteristic == nil else {
             return
         }
         
-        for characteric in characteristics {
-            switch characteric.uuid {
+        for characteristic in characteristics {
+//            print("""
+//                    - UUID: \(characteristic.uuid.uuidString)
+//                      properties: \(characteristic.properties)
+//                    """)
+            
+            switch characteristic.uuid {
             case IDs.control:
-                self.controlCharacteristic = characteric
+                self.controlCharacteristic = characteristic
                 print("Found control!")
+            case IDs.voice:
+                self.voiceCharacteristic = characteristic
+                print("Found voice!")
             default:
-                print("Unknown characteristic: \(characteric.uuid)")
+                print("Unknown characteristic: \(characteristic.uuid)")
             }
         }
     }
@@ -121,6 +131,7 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
             print("Services invalidated — clearing peripheral and restarting scan")
             carPeripheral = nil
             controlCharacteristic = nil
+            voiceCharacteristic = nil
             
             // Stop any ongoing connection attempts
             manager.cancelPeripheralConnection(peripheral)
@@ -163,11 +174,28 @@ class BluetoothCentral: NSObject, ObservableObject, CBCentralManagerDelegate, CB
         carPeripheral!.writeValue(data, for: controlCharacteristic!, type: .withoutResponse)
     }
     
+    func updateCarLight(command: UInt8) {
+        if carPeripheral == nil {
+            print("peripheral not found!")
+            return
+        }
+        
+        if voiceCharacteristic == nil {
+            print("voice not found!")
+            return
+        }
+        
+        let data = Data([command])
+        carPeripheral!.writeValue(data, for: voiceCharacteristic!, type: .withoutResponse)
+    }
+    
     func lightOn() {
         print("Light turning on!")
+        updateCarLight(command: VoiceCommands.lightOnCommand)
     }
     
     func lightOff() {
         print("Light turning off!")
+        updateCarLight(command: VoiceCommands.lightOffCommand)
     }
 }

@@ -15,12 +15,12 @@ struct ContentView: View {
     var body: some View {
         VStack {
             Button(action: {
-                microphoneCapture.toggleStreaming()
+                microphoneCapture.toggleStreaming(option: Audio.Use.command)
             }) {
-                Text(microphoneCapture.isStreaming ? "Speaking" : "Not Speaking")
+                Text(microphoneCapture.usingAudio ? "Running Commands" : "Not Running Commands")
                     .foregroundColor(.white)
                     .padding(8)
-                    .background(microphoneCapture.isStreaming ? Color.green : Color.red)
+                    .background(microphoneCapture.usingAudio ? Color.green : Color.red)
                     .cornerRadius(8)
             }.padding(.vertical, 40)
             
